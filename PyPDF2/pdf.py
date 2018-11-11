@@ -1670,11 +1670,12 @@ class PdfFileReader(object):
                     raise utils.PdfReadError("Expected object ID (%d %d) does not match actual (%d %d); xref table not zero-indexed." \
                                      % (indirectReference.idnum, indirectReference.generation, idnum, generation))
                 else: pass # xref table is corrected in non-strict mode
-            elif idnum != indirectReference.idnum:
+            elif idnum != indirectReference.idnum and self.strict:
                 # some other problem
                 raise utils.PdfReadError("Expected object ID (%d %d) does not match actual (%d %d)." \
                                          % (indirectReference.idnum, indirectReference.generation, idnum, generation))
-            assert generation == indirectReference.generation
+            if self.strict:
+                assert generation == indirectReference.generation
             retval = readObject(self.stream, self)
 
             # override encryption is used for the /Encrypt dictionary
@@ -2229,7 +2230,8 @@ class PageObject(DictionaryObject):
         return self
 
     def _rotate(self, angle):
-        currentAngle = self.get("/Rotate", 0)
+        rotateObj = self.get("/Rotate", 0)
+        currentAngle = rotateObj if isinstance(rotateObj, int) else rotateObj.getObject()
         self[NameObject("/Rotate")] = NumberObject(currentAngle + angle)
 
     def _mergeResources(res1, res2, resource):
@@ -2668,6 +2670,7 @@ class PageObject(DictionaryObject):
                 _text = operands[0]
                 if isinstance(_text, TextStringObject):
                     text += _text
+                    text += "\n"
             elif operator == b_("T*"):
                 text += "\n"
             elif operator == b_("'"):
